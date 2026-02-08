@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
     }),
     PersistenceModule,
     process.env.APP_ROLE === 'api' ? ApiModule : IngestionModule,

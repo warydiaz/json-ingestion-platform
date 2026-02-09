@@ -1,0 +1,18 @@
+{
+  "datasets": [
+    {
+      "datasetId": "structured-data",
+      "source": "source-1",
+      "sourceType": "HTTP",
+      "url": "https://buenro-tech-assessment-materials.s3.eu-north-1.amazonaws.com/structured_generated_data.json",
+      "description": "Structured Data (~200kb)"
+    },
+    {
+      "datasetId": "large-data",
+      "source": "source-2",
+      "sourceType": "HTTP",
+      "url": "https://buenro-tech-assessment-materials.s3.eu-north-1.amazonaws.com/large_generated_data.json",
+      "description": "Large Data (~150MB)"
+    }
+  ]
+}

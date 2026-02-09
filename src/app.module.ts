@@ -1,17 +1,19 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from './config/config.module';
 import { ApiModule } from './api/api.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { PersistenceModule } from './persistence/persistence.module';
-import { ConfigModule } from '@nestjs/config';
+import { SchedulerModule } from './scheduler/scheduler.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
+    ConfigModule,
     PersistenceModule,
-    process.env.APP_ROLE === 'api' ? ApiModule : IngestionModule,
+    SchedulerModule,
+    HealthModule,
+    ApiModule,
+    IngestionModule,
   ],
 })
 export class AppModule {}

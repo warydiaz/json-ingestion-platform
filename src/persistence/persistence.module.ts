@@ -1,27 +1,25 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { IngestedDocument, IngestedSchema } from './schemas/ingested.schema';
-import { IngestedRepository } from './ingested.repository';
+import { ConfigService } from '@nestjs/config';
+import { IngestedRecordRepository } from './repositories/ingested-record.repository';
+import {
+  IngestedRecord,
+  IngestedRecordSchema,
+} from './schemas/ingested-record.schema';
+import { getMongoConfig } from '../config/mongo.config';
 
 @Module({
   imports: [
     MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGO_URI'),
-      }),
+      useFactory: getMongoConfig,
       inject: [ConfigService],
     }),
 
     MongooseModule.forFeature([
-      {
-        name: IngestedDocument.name,
-        schema: IngestedSchema,
-      },
+      { name: IngestedRecord.name, schema: IngestedRecordSchema },
     ]),
   ],
-  providers: [IngestedRepository],
-  exports: [IngestedRepository],
+  providers: [IngestedRecordRepository],
+  exports: [IngestedRecordRepository],
 })
 export class PersistenceModule {}

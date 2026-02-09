@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ApiController } from './api.controller';
-import { ApiService } from './api.service';
+import { RecordsController } from './controllers/records.controller';
+import { GetRecordsUseCase } from './use-cases/get-records.use-case';
+import { PersistenceModule } from '../persistence/persistence.module';
 
 @Module({
-  controllers: [ApiController],
-  providers: [ApiService],
+  imports: [PersistenceModule],
+  controllers: [RecordsController],
+  providers: [GetRecordsUseCase],
 })
 export class ApiModule {}

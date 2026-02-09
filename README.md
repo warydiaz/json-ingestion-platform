@@ -1,98 +1,137 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# JSON Ingestion Platform
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A scalable data ingestion platform built with NestJS that streams JSON data from external sources, stores it in MongoDB, and exposes a flexible query API with dynamic filtering and cursor-based pagination.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Architecture
 
-## Description
+```
+datasets.config.json
+        |
+        v
+  [Scheduler] (cron every 10 min)
+        |
+        v
+  [RabbitMQ] --> [Ingestion Worker]
+                        |
+                        v
+                 [HTTP Streaming]
+                        |
+                        v
+                 [Batch Insert] --> MongoDB
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+  [REST API] --> [MongoDB] --> Response with cursor pagination
 ```
 
-## Compile and run the project
+## Prerequisites
+
+- Node.js 18+
+- Docker (for MongoDB and RabbitMQ)
+
+## Setup
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
+Start infrastructure services:
+
+```bash
+docker-compose up -d
+```
+
+Create a `.env` file:
+
+```env
+MONGO_URI=mongodb://localhost:27017/ingestion
+RABBITMQ_URI=amqp://admin:admin@localhost:5672
+```
+
+## Running
+
+```bash
+# development (watch mode)
+npm run start:dev
+
+# production
+npm run start:prod
+```
+
+## API Endpoints
+
+### Query Records
+
+```
+GET /records
+```
+
+**Query Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| `source` | Filter by data source |
+| `datasetId` | Filter by dataset |
+| `payload.*` | Dynamic filter on any payload field (e.g. `payload.address.city=Lyon`) |
+| `limit` | Results per page (1-100, default: 10) |
+| `cursor` | Cursor for next page |
+
+**Example:**
+
+```
+GET /records?source=source-1&payload.address.country=France&payload.isAvailable=true&limit=50
+```
+
+**Response:**
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "total": 1000,
+    "limit": 50,
+    "nextCursor": "64f1a2b3c4d5e6f7a8b9c0d1",
+    "hasMore": true
+  }
+}
+```
+
+### Trigger Ingestion
+
+```
+POST /admin/trigger-ingestion
+```
+
+Manually triggers ingestion for all configured datasets.
+
+### Health Check
+
+```
+GET /health
+```
+
+## Dataset Configuration
+
+See [DATASETS.md](DATASETS.md) for details on adding new data sources.
+
+## Tests
 
 ```bash
 # unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
+npm run test
 
 # test coverage
-$ npm run test:cov
+npm run test:cov
 ```
 
-## Deployment
+## Project Structure
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+src/
+├── api/                  # REST API (controllers, DTOs, use cases)
+├── ingestion/            # Data ingestion pipeline (workers, adapters)
+├── persistence/          # Database layer (repositories, schemas)
+├── scheduler/            # Cron jobs and manual triggers
+├── messaging/            # RabbitMQ publisher
+├── health/               # Health checks
+├── config/               # Configuration (MongoDB, RabbitMQ, datasets)
+└── common/               # Shared utilities, constants, exceptions
+```

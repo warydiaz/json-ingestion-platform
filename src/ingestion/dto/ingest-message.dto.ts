@@ -26,18 +26,18 @@ export class IngestMessageDto {
   source?: string;
 
   // S3 fields - required only when sourceType is S3
-  @ValidateIf((o) => o.sourceType === DataSourceType.S3)
+  @ValidateIf((o: IngestMessageDto) => o.sourceType === DataSourceType.S3)
   @IsString()
   @IsNotEmpty()
   bucket?: string;
 
-  @ValidateIf((o) => o.sourceType === DataSourceType.S3)
+  @ValidateIf((o: IngestMessageDto) => o.sourceType === DataSourceType.S3)
   @IsString()
   @IsNotEmpty()
   key?: string;
 
   // HTTP fields - required only when sourceType is HTTP
-  @ValidateIf((o) => o.sourceType === DataSourceType.HTTP)
+  @ValidateIf((o: IngestMessageDto) => o.sourceType === DataSourceType.HTTP)
   @IsString()
   @IsNotEmpty()
   url?: string;

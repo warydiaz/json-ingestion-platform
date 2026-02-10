@@ -24,7 +24,7 @@ export class IngestDatasetWorker {
     } catch (error) {
       this.logger.error(
         `Ingestion failed for dataset ${message.datasetId}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
 
       // IMPORTANT: Throwing the error triggers RabbitMQ retry mechanism

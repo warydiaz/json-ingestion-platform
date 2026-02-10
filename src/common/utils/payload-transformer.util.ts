@@ -41,7 +41,11 @@ export class PayloadTransformerUtil {
     let current: unknown = obj;
 
     for (const part of parts) {
-      if (current === null || current === undefined || typeof current !== 'object') {
+      if (
+        current === null ||
+        current === undefined ||
+        typeof current !== 'object'
+      ) {
         return undefined;
       }
       current = (current as JsonObject)[part];

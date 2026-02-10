@@ -3,6 +3,7 @@ import { IngestedRecordRepository } from '../../persistence/repositories/ingeste
 import { IngestMessageDto } from '../dto/ingest-message.dto';
 import { HttpDataFetcher } from '../adapters/http-data-fetcher';
 import { MissingRequiredFieldException } from '../../common/exceptions';
+import type { RecordPayload } from '../../common/utils/payload.types';
 import { PayloadTransformerUtil } from '../../common/utils/payload-transformer.util';
 import { BATCH_SIZES } from '../../common/constants';
 
@@ -17,7 +18,10 @@ export class IngestDatasetUseCase {
 
   async execute(message: IngestMessageDto): Promise<void> {
     if (!message.url) {
-      throw new MissingRequiredFieldException('url', `dataset: ${message.datasetId}`);
+      throw new MissingRequiredFieldException(
+        'url',
+        `dataset: ${message.datasetId}`,
+      );
     }
 
     const source = message.source || message.sourceType;
@@ -39,7 +43,10 @@ export class IngestDatasetUseCase {
     const ingestionDate = new Date();
 
     // 2. Fetch data con streaming (funciona para cualquier tamaño)
-    const dataStream = this.httpFetcher.fetch(message.url, BATCH_SIZES.DATA_INGESTION);
+    const dataStream = this.httpFetcher.fetch(
+      message.url,
+      BATCH_SIZES.DATA_INGESTION,
+    );
 
     // 3. Procesar por batches
     for await (const batch of dataStream) {
@@ -52,7 +59,7 @@ export class IngestDatasetUseCase {
         return {
           source,
           datasetId: message.datasetId,
-          payload: payload as any,
+          payload: payload as RecordPayload,
           ingestionDate,
         };
       });

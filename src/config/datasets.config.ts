@@ -32,7 +32,7 @@ export class DatasetsConfigService {
 
     try {
       const fileContent = readFileSync(CONFIG_PATHS.DATASETS, 'utf-8');
-      this.config = JSON.parse(fileContent);
+      this.config = JSON.parse(fileContent) as DatasetsConfiguration;
       return this.config?.datasets || [];
     } catch (error) {
       throw new ConfigLoadingException(

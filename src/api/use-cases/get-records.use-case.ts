@@ -43,7 +43,8 @@ export class GetRecordsUseCase {
         },
       };
     } catch (error) {
-      throw new BadRequestException(error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(message);
     }
   }
 }

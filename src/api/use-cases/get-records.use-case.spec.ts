@@ -136,7 +136,13 @@ describe('GetRecordsUseCase', () => {
       payloadFilters: {},
     };
     const mockItems = [
-      { _id: '1', source: 'source-1', datasetId: 'test', payload: {}, ingestionDate: new Date() },
+      {
+        _id: '1',
+        source: 'source-1',
+        datasetId: 'test',
+        payload: {},
+        ingestionDate: new Date(),
+      },
     ];
 
     jest.spyOn(repository, 'findWithCursor').mockResolvedValue({

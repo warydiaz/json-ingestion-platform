@@ -50,7 +50,11 @@ describe('RecordsController', () => {
 
     const result = await controller.getRecords(query, filters);
 
-    expect(getRecordsUseCase.execute).toHaveBeenCalledWith(filters, 20, 'abc123');
+    expect(getRecordsUseCase.execute).toHaveBeenCalledWith(
+      filters,
+      20,
+      'abc123',
+    );
     expect(result).toBe(expectedResult);
   });
 

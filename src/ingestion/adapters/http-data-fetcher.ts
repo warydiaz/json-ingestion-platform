@@ -27,7 +27,7 @@ export class HttpDataFetcher {
     url: string,
     batchSize: number,
   ): DataStreamGenerator {
-    const response = await axios.get(url, { responseType: 'stream' });
+    const response = await axios.get<Readable>(url, { responseType: 'stream' });
     const inputStream: Readable = response.data;
 
     const jsonStream = inputStream.pipe(parser()).pipe(streamArray());

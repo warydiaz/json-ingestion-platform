@@ -1,16 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GetRecordsUseCase } from './get-records.use-case';
 import { IngestedRecordRepository } from '../../persistence/repositories/ingested-record.repository';
-import { BadRequestException } from '@nestjs/common';
+import type { ParsedQuery } from '../../common/utils/query-parser.types';
 
 describe('GetRecordsUseCase', () => {
   let useCase: GetRecordsUseCase;
   let repository: IngestedRecordRepository;
+  let mockRepository: Record<string, jest.Mock>;
 
   beforeEach(async () => {
-    const mockRepository = {
+    mockRepository = {
       findWithCursor: jest.fn(),
       count: jest.fn(),
+      estimatedCount: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -32,7 +34,10 @@ describe('GetRecordsUseCase', () => {
   });
 
   it('should filter by standard fields (source, datasetId)', async () => {
-    const query = { source: 'source-1', datasetId: 'dataset-123' };
+    const filters: ParsedQuery = {
+      standardFilters: { source: 'source-1', datasetId: 'dataset-123' },
+      payloadFilters: {},
+    };
 
     jest.spyOn(repository, 'findWithCursor').mockResolvedValue({
       items: [],
@@ -40,7 +45,7 @@ describe('GetRecordsUseCase', () => {
     });
     jest.spyOn(repository, 'count').mockResolvedValue(0);
 
-    await useCase.execute(query);
+    await useCase.execute(filters);
 
     expect(repository.findWithCursor).toHaveBeenCalledWith({
       filter: { source: 'source-1', datasetId: 'dataset-123' },
@@ -50,7 +55,13 @@ describe('GetRecordsUseCase', () => {
   });
 
   it('should filter by payload fields', async () => {
-    const query = { age: '25', city: 'Madrid' };
+    const filters: ParsedQuery = {
+      standardFilters: {},
+      payloadFilters: {
+        'payload.age': 25,
+        'payload.city': { $regex: 'Madrid', $options: 'i' },
+      },
+    };
 
     jest.spyOn(repository, 'findWithCursor').mockResolvedValue({
       items: [],
@@ -58,7 +69,7 @@ describe('GetRecordsUseCase', () => {
     });
     jest.spyOn(repository, 'count').mockResolvedValue(0);
 
-    await useCase.execute(query);
+    await useCase.execute(filters);
 
     expect(repository.findWithCursor).toHaveBeenCalledWith({
       filter: {
@@ -71,10 +82,12 @@ describe('GetRecordsUseCase', () => {
   });
 
   it('should combine standard and payload filters', async () => {
-    const query = {
-      source: 'source-1',
-      age: '30',
-      active: 'true',
+    const filters: ParsedQuery = {
+      standardFilters: { source: 'source-1' },
+      payloadFilters: {
+        'payload.age': 30,
+        'payload.active': true,
+      },
     };
 
     jest.spyOn(repository, 'findWithCursor').mockResolvedValue({
@@ -83,7 +96,7 @@ describe('GetRecordsUseCase', () => {
     });
     jest.spyOn(repository, 'count').mockResolvedValue(0);
 
-    await useCase.execute(query);
+    await useCase.execute(filters);
 
     expect(repository.findWithCursor).toHaveBeenCalledWith({
       filter: {
@@ -96,16 +109,34 @@ describe('GetRecordsUseCase', () => {
     });
   });
 
-  it('should throw BadRequestException on invalid payload filter', async () => {
-    const query = { $where: 'malicious' };
+  it('should use custom limit and cursor', async () => {
+    const filters: ParsedQuery = {
+      standardFilters: { source: 'source-1' },
+      payloadFilters: {},
+    };
 
-    await expect(useCase.execute(query)).rejects.toThrow(BadRequestException);
+    jest.spyOn(repository, 'findWithCursor').mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    jest.spyOn(repository, 'count').mockResolvedValue(0);
+
+    await useCase.execute(filters, 50, 'abc123');
+
+    expect(repository.findWithCursor).toHaveBeenCalledWith({
+      filter: { source: 'source-1' },
+      limit: 50,
+      cursor: 'abc123',
+    });
   });
 
   it('should return data with pagination', async () => {
-    const query = { source: 'source-1' };
+    const filters: ParsedQuery = {
+      standardFilters: { source: 'source-1' },
+      payloadFilters: {},
+    };
     const mockItems = [
-      { _id: '1', source: 'source-1', datasetId: 'test', payload: {} },
+      { _id: '1', source: 'source-1', datasetId: 'test', payload: {}, ingestionDate: new Date() },
     ];
 
     jest.spyOn(repository, 'findWithCursor').mockResolvedValue({
@@ -114,7 +145,7 @@ describe('GetRecordsUseCase', () => {
     });
     jest.spyOn(repository, 'count').mockResolvedValue(100);
 
-    const result = await useCase.execute(query);
+    const result = await useCase.execute(filters);
 
     expect(result).toEqual({
       data: mockItems,
@@ -125,5 +156,23 @@ describe('GetRecordsUseCase', () => {
         hasMore: true,
       },
     });
+  });
+
+  it('should use estimatedCount when no filters are applied', async () => {
+    const filters: ParsedQuery = {
+      standardFilters: {},
+      payloadFilters: {},
+    };
+
+    mockRepository.findWithCursor.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    mockRepository.estimatedCount.mockResolvedValue(5000);
+
+    const result = await useCase.execute(filters);
+
+    expect(mockRepository.estimatedCount).toHaveBeenCalled();
+    expect(result.pagination.total).toBe(5000);
   });
 });

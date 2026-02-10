@@ -44,6 +44,7 @@ Create a `.env` file:
 ```env
 MONGO_URI=mongodb://localhost:27017/ingestion
 RABBITMQ_URI=amqp://admin:admin@localhost:5672
+INGESTION_CRON=0 */10 * * * *   # optional, default: every 10 minutes
 ```
 
 ## Running
@@ -70,14 +71,20 @@ GET /records
 |-----------|-------------|
 | `source` | Filter by data source |
 | `datasetId` | Filter by dataset |
-| `payload.*` | Dynamic filter on any payload field (e.g. `payload.address.city=Lyon`) |
+| `<field>` | Exact match for numbers/booleans, partial text (case-insensitive) for strings |
+| `<field>_min` | Greater than or equal (e.g. `price_min=100`) |
+| `<field>_max` | Less than or equal (e.g. `price_max=500`) |
+| `<field>_gt` | Greater than |
+| `<field>_lt` | Less than |
 | `limit` | Results per page (1-100, default: 10) |
 | `cursor` | Cursor for next page |
 
-**Example:**
+**Examples:**
 
 ```
-GET /records?source=source-1&payload.address.country=France&payload.isAvailable=true&limit=50
+GET /records?city=Ly&available=true&limit=50
+GET /records?price_min=100&price_max=500
+GET /records?source=source-1&city=Lyon&available=true
 ```
 
 **Response:**
@@ -110,7 +117,9 @@ GET /health
 
 ## Dataset Configuration
 
-See [DATASETS.md](DATASETS.md) for details on adding new data sources.
+Datasets are configured in `datasets.config.json`. Each dataset supports an optional `fieldMapping` to normalize payload fields across different sources, so API consumers use unified field names regardless of the data source.
+
+See [DATASETS.md](DATASETS.md) for details on adding new data sources and configuring field mappings.
 
 ## Tests
 

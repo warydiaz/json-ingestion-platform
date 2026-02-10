@@ -2,6 +2,7 @@ import {
   IsEnum,
   IsString,
   IsOptional,
+  IsObject,
   ValidateIf,
   IsNotEmpty,
 } from 'class-validator';
@@ -40,4 +41,8 @@ export class IngestMessageDto {
   @IsString()
   @IsNotEmpty()
   url?: string;
+
+  @IsOptional()
+  @IsObject()
+  fieldMapping?: Record<string, string>;
 }

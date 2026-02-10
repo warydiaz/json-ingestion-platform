@@ -17,6 +17,8 @@ export interface MongoDbOperator {
   $lte?: string | number | Date | { toString(): string };
   $in?: Array<string | number>;
   $ne?: string | number | boolean;
+  $regex?: string;
+  $options?: string;
 }
 
 /**

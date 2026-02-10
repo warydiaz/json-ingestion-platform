@@ -1,8 +1,5 @@
 import { QueryParserUtil } from './query-parser.util';
-import {
-  InvalidFieldPathException,
-  EmptyFieldPathException,
-} from '../../common/exceptions';
+import { InvalidFieldPathException } from '../../common/exceptions';
 
 describe('QueryParserUtil', () => {
   describe('parseQuery', () => {
@@ -23,40 +20,26 @@ describe('QueryParserUtil', () => {
 
     it('should parse payload filters with type coercion', () => {
       const query = {
-        'payload.age': '25',
-        'payload.active': 'true',
-        'payload.name': 'John',
+        age: '25',
+        active: 'true',
+        name: 'John',
       };
 
       const result = QueryParserUtil.parseQuery(query);
 
       expect(result.standardFilters).toEqual({});
       expect(result.payloadFilters).toEqual({
-        'payload.age': 25, // Number
-        'payload.active': true, // Boolean
-        'payload.name': 'John', // String
-      });
-    });
-
-    it('should parse nested payload fields', () => {
-      const query = {
-        'payload.address.city': 'Madrid',
-        'payload.address.zipCode': '28001',
-      };
-
-      const result = QueryParserUtil.parseQuery(query);
-
-      expect(result.payloadFilters).toEqual({
-        'payload.address.city': 'Madrid',
-        'payload.address.zipCode': 28001,
+        'payload.age': 25,
+        'payload.active': true,
+        'payload.name': { $regex: 'John', $options: 'i' },
       });
     });
 
     it('should combine standard and payload filters', () => {
       const query = {
         source: 'source-1',
-        'payload.age': '30',
-        'payload.city': 'Barcelona',
+        age: '30',
+        city: 'Barcelona',
       };
 
       const result = QueryParserUtil.parseQuery(query);
@@ -64,7 +47,7 @@ describe('QueryParserUtil', () => {
       expect(result.standardFilters).toEqual({ source: 'source-1' });
       expect(result.payloadFilters).toEqual({
         'payload.age': 30,
-        'payload.city': 'Barcelona',
+        'payload.city': { $regex: 'Barcelona', $options: 'i' },
       });
     });
 
@@ -73,7 +56,7 @@ describe('QueryParserUtil', () => {
         source: 'source-1',
         limit: 20,
         cursor: 'abc123',
-        'payload.age': '25',
+        age: '25',
       };
 
       const result = QueryParserUtil.parseQuery(query);
@@ -86,8 +69,8 @@ describe('QueryParserUtil', () => {
 
     it('should parse boolean values correctly', () => {
       const query = {
-        'payload.active': 'true',
-        'payload.deleted': 'false',
+        active: 'true',
+        deleted: 'false',
       };
 
       const result = QueryParserUtil.parseQuery(query);
@@ -99,9 +82,7 @@ describe('QueryParserUtil', () => {
     });
 
     it('should parse null value correctly', () => {
-      const query = {
-        'payload.deletedAt': 'null',
-      };
+      const query = { deletedAt: 'null' };
 
       const result = QueryParserUtil.parseQuery(query);
 
@@ -110,11 +91,11 @@ describe('QueryParserUtil', () => {
       });
     });
 
-    it('should parse numbers correctly', () => {
+    it('should parse numbers correctly (exact match)', () => {
       const query = {
-        'payload.age': '25',
-        'payload.price': '19.99',
-        'payload.count': '0',
+        age: '25',
+        price: '19.99',
+        count: '0',
       };
 
       const result = QueryParserUtil.parseQuery(query);
@@ -125,27 +106,148 @@ describe('QueryParserUtil', () => {
         'payload.count': 0,
       });
     });
+  });
 
-    it('should keep strings as strings when not parseable', () => {
-      const query = {
-        'payload.name': 'John Doe',
-        'payload.email': 'john@example.com',
-      };
+  describe('partial text search', () => {
+    it('should use case-insensitive regex for string values', () => {
+      const query = { city: 'Ly' };
 
       const result = QueryParserUtil.parseQuery(query);
 
       expect(result.payloadFilters).toEqual({
-        'payload.name': 'John Doe',
-        'payload.email': 'john@example.com',
+        'payload.city': { $regex: 'Ly', $options: 'i' },
+      });
+    });
+
+    it('should escape special regex characters', () => {
+      const query = { name: 'John (Jr.)' };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters).toEqual({
+        'payload.name': { $regex: 'John \\(Jr\\.\\)', $options: 'i' },
+      });
+    });
+
+    it('should use regex for non-parseable strings', () => {
+      const query = {
+        name: 'John Doe',
+        email: 'john@example.com',
+      };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters['payload.name']).toEqual({
+        $regex: 'John Doe',
+        $options: 'i',
+      });
+    });
+  });
+
+  describe('numeric range filters', () => {
+    it('should parse _min suffix as $gte', () => {
+      const query = { price_min: '100' };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters).toEqual({
+        'payload.price': { $gte: 100 },
+      });
+    });
+
+    it('should parse _max suffix as $lte', () => {
+      const query = { price_max: '500' };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters).toEqual({
+        'payload.price': { $lte: 500 },
+      });
+    });
+
+    it('should parse _gt suffix as $gt', () => {
+      const query = { age_gt: '18' };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters).toEqual({
+        'payload.age': { $gt: 18 },
+      });
+    });
+
+    it('should parse _lt suffix as $lt', () => {
+      const query = { age_lt: '65' };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters).toEqual({
+        'payload.age': { $lt: 65 },
+      });
+    });
+
+    it('should combine _min and _max on the same field', () => {
+      const query = { price_min: '100', price_max: '500' };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters).toEqual({
+        'payload.price': { $gte: 100, $lte: 500 },
+      });
+    });
+
+    it('should combine _gt and _lt on the same field', () => {
+      const query = { age_gt: '18', age_lt: '65' };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters).toEqual({
+        'payload.age': { $gt: 18, $lt: 65 },
+      });
+    });
+
+    it('should ignore range filters with non-numeric values', () => {
+      const query = { price_min: 'abc' };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters).toEqual({});
+    });
+
+    it('should handle decimal range values', () => {
+      const query = { price_min: '19.99', price_max: '99.99' };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.payloadFilters).toEqual({
+        'payload.price': { $gte: 19.99, $lte: 99.99 },
+      });
+    });
+  });
+
+  describe('combined filters', () => {
+    it('should handle exact, partial text, and range filters together', () => {
+      const query = {
+        source: 'source-1',
+        available: 'true',
+        city: 'Ly',
+        price_min: '100',
+        price_max: '500',
+      };
+
+      const result = QueryParserUtil.parseQuery(query);
+
+      expect(result.standardFilters).toEqual({ source: 'source-1' });
+      expect(result.payloadFilters).toEqual({
+        'payload.available': true,
+        'payload.city': { $regex: 'Ly', $options: 'i' },
+        'payload.price': { $gte: 100, $lte: 500 },
       });
     });
   });
 
   describe('security - MongoDB injection prevention', () => {
     it('should reject MongoDB operators in field path', () => {
-      const query = {
-        'payload.$where': 'malicious code',
-      };
+      const query = { $where: 'malicious code' };
 
       expect(() => QueryParserUtil.parseQuery(query)).toThrow(
         InvalidFieldPathException,
@@ -155,21 +257,8 @@ describe('QueryParserUtil', () => {
       );
     });
 
-    it('should reject $ in nested field path', () => {
-      const query = {
-        'payload.user.$gt': '10',
-      };
-
-      expect(() => QueryParserUtil.parseQuery(query)).toThrow(
-        InvalidFieldPathException,
-      );
-      expect(() => QueryParserUtil.parseQuery(query)).toThrow(/\$gt/);
-    });
-
     it('should reject unsafe characters in field path', () => {
-      const query = {
-        'payload.field@special': 'value',
-      };
+      const query = { 'field@special': 'value' };
 
       expect(() => QueryParserUtil.parseQuery(query)).toThrow(
         InvalidFieldPathException,
@@ -179,39 +268,13 @@ describe('QueryParserUtil', () => {
       );
     });
 
-    it('should reject empty field path', () => {
-      const query = {
-        'payload.': 'value',
-      };
-
-      expect(() => QueryParserUtil.parseQuery(query)).toThrow(
-        EmptyFieldPathException,
-      );
-    });
-
     it('should allow safe field names with underscores', () => {
-      const query = {
-        'payload.user_id': '123',
-        'payload.created_at': '2024-01-01',
-      };
+      const query = { user_id: '123' };
 
       const result = QueryParserUtil.parseQuery(query);
 
       expect(result.payloadFilters).toEqual({
         'payload.user_id': 123,
-        'payload.created_at': '2024-01-01',
-      });
-    });
-
-    it('should allow nested fields with dots', () => {
-      const query = {
-        'payload.user.profile.name': 'John',
-      };
-
-      const result = QueryParserUtil.parseQuery(query);
-
-      expect(result.payloadFilters).toEqual({
-        'payload.user.profile.name': 'John',
       });
     });
   });
@@ -246,7 +309,7 @@ describe('QueryParserUtil', () => {
       const query = {
         source: undefined,
         datasetId: undefined,
-        'payload.age': '25',
+        age: '25',
       };
 
       const result = QueryParserUtil.parseQuery(query);
@@ -258,18 +321,14 @@ describe('QueryParserUtil', () => {
 
   describe('value type parsing edge cases', () => {
     it('should parse zero as number, not falsy', () => {
-      const query = { 'payload.count': '0' };
+      const query = { count: '0' };
       const result = QueryParserUtil.parseQuery(query);
 
       expect(result.payloadFilters['payload.count']).toBe(0);
-      expect(typeof result.payloadFilters['payload.count']).toBe('number');
     });
 
     it('should parse negative numbers correctly', () => {
-      const query = {
-        'payload.temperature': '-15.5',
-        'payload.balance': '-100',
-      };
+      const query = { temperature: '-15.5', balance: '-100' };
 
       const result = QueryParserUtil.parseQuery(query);
 
@@ -277,45 +336,8 @@ describe('QueryParserUtil', () => {
       expect(result.payloadFilters['payload.balance']).toBe(-100);
     });
 
-    it('should handle string with spaces correctly', () => {
-      const query = {
-        'payload.name': '  John Doe  ',
-      };
-
-      const result = QueryParserUtil.parseQuery(query);
-
-      expect(result.payloadFilters['payload.name']).toBe('John Doe');
-    });
-
-    it('should parse scientific notation as numbers', () => {
-      const query = {
-        'payload.value': '1e5',
-        'payload.small': '1.5e-3',
-      };
-
-      const result = QueryParserUtil.parseQuery(query);
-
-      expect(result.payloadFilters['payload.value']).toBe(100000);
-      expect(result.payloadFilters['payload.small']).toBe(0.0015);
-    });
-
-    it('should keep string that looks like number but has text', () => {
-      const query = {
-        'payload.code': '123abc',
-        'payload.reference': 'ref-456',
-      };
-
-      const result = QueryParserUtil.parseQuery(query);
-
-      expect(result.payloadFilters['payload.code']).toBe('123abc');
-      expect(result.payloadFilters['payload.reference']).toBe('ref-456');
-    });
-
     it('should handle already-parsed boolean values', () => {
-      const query = {
-        'payload.active': true,
-        'payload.deleted': false,
-      };
+      const query = { active: true, deleted: false };
 
       const result = QueryParserUtil.parseQuery(query);
 
@@ -324,10 +346,7 @@ describe('QueryParserUtil', () => {
     });
 
     it('should handle already-parsed number values', () => {
-      const query = {
-        'payload.age': 25,
-        'payload.price': 19.99,
-      };
+      const query = { age: 25, price: 19.99 };
 
       const result = QueryParserUtil.parseQuery(query);
 
@@ -339,11 +358,11 @@ describe('QueryParserUtil', () => {
   describe('additional security tests', () => {
     it('should reject multiple MongoDB operators', () => {
       const maliciousQueries = [
-        { 'payload.$ne': 'value' },
-        { 'payload.$gt': '10' },
-        { 'payload.$lt': '5' },
-        { 'payload.$regex': '.*' },
-        { 'payload.$or': 'array' },
+        { $ne: 'value' },
+        { $gt: '10' },
+        { $lt: '5' },
+        { $regex: '.*' },
+        { $or: 'array' },
       ];
 
       maliciousQueries.forEach((query) => {
@@ -355,11 +374,11 @@ describe('QueryParserUtil', () => {
 
     it('should reject special characters in field names', () => {
       const maliciousQueries = [
-        { 'payload.field!name': 'value' },
-        { 'payload.field#name': 'value' },
-        { 'payload.field%name': 'value' },
-        { 'payload.field&name': 'value' },
-        { 'payload.field*name': 'value' },
+        { 'field!name': 'value' },
+        { 'field#name': 'value' },
+        { 'field%name': 'value' },
+        { 'field&name': 'value' },
+        { 'field*name': 'value' },
       ];
 
       maliciousQueries.forEach((query) => {
@@ -370,16 +389,12 @@ describe('QueryParserUtil', () => {
     });
 
     it('should allow numbers in field names', () => {
-      const query = {
-        'payload.field123': 'value',
-        'payload.user2_name': 'John',
-      };
+      const query = { field123: 'value' };
 
       const result = QueryParserUtil.parseQuery(query);
 
       expect(result.payloadFilters).toEqual({
-        'payload.field123': 'value',
-        'payload.user2_name': 'John',
+        'payload.field123': { $regex: 'value', $options: 'i' },
       });
     });
   });

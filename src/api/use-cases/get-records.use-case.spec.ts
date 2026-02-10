@@ -50,7 +50,7 @@ describe('GetRecordsUseCase', () => {
   });
 
   it('should filter by payload fields', async () => {
-    const query = { 'payload.age': '25', 'payload.city': 'Madrid' };
+    const query = { age: '25', city: 'Madrid' };
 
     jest.spyOn(repository, 'findWithCursor').mockResolvedValue({
       items: [],
@@ -61,7 +61,10 @@ describe('GetRecordsUseCase', () => {
     await useCase.execute(query);
 
     expect(repository.findWithCursor).toHaveBeenCalledWith({
-      filter: { 'payload.age': 25, 'payload.city': 'Madrid' },
+      filter: {
+        'payload.age': 25,
+        'payload.city': { $regex: 'Madrid', $options: 'i' },
+      },
       limit: 10,
       cursor: undefined,
     });
@@ -70,8 +73,8 @@ describe('GetRecordsUseCase', () => {
   it('should combine standard and payload filters', async () => {
     const query = {
       source: 'source-1',
-      'payload.age': '30',
-      'payload.active': 'true',
+      age: '30',
+      active: 'true',
     };
 
     jest.spyOn(repository, 'findWithCursor').mockResolvedValue({
@@ -94,7 +97,7 @@ describe('GetRecordsUseCase', () => {
   });
 
   it('should throw BadRequestException on invalid payload filter', async () => {
-    const query = { 'payload.$where': 'malicious' };
+    const query = { $where: 'malicious' };
 
     await expect(useCase.execute(query)).rejects.toThrow(BadRequestException);
   });

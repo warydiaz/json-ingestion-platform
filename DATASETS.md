@@ -16,14 +16,29 @@ Edit the `datasets.config.json` file in the project root.
       "source": "source-1",
       "sourceType": "HTTP",
       "url": "https://buenro-tech-assessment-materials.s3.eu-north-1.amazonaws.com/structured_generated_data.json",
-      "description": "Structured Data (~200kb)"
+      "description": "Structured Data (~200kb)",
+      "fieldMapping": {
+        "id": "id",
+        "name": "name",
+        "city": "address.city",
+        "country": "address.country",
+        "available": "isAvailable",
+        "price": "priceForNight"
+      }
     },
     {
       "datasetId": "large-data",
       "source": "source-2",
       "sourceType": "HTTP",
       "url": "https://buenro-tech-assessment-materials.s3.eu-north-1.amazonaws.com/large_generated_data.json",
-      "description": "Large Data (~150MB)"
+      "description": "Large Data (~150MB)",
+      "fieldMapping": {
+        "id": "id",
+        "city": "city",
+        "available": "availability",
+        "price": "pricePerNight",
+        "priceSegment": "priceSegment"
+      }
     }
   ]
 }
@@ -43,8 +58,63 @@ Edit the `datasets.config.json` file in the project root.
 | Field | Type | Description |
 |-------|------|-------------|
 | `description` | string | Dataset description |
+| `fieldMapping` | object | Maps normalized field names to source field paths (see below) |
 | `bucket` | string | S3 bucket name (for sourceType: S3, future) |
 | `key` | string | S3 object key (for sourceType: S3, future) |
+
+## Field Mapping (Payload Normalization)
+
+Different data sources often use different field names for the same concept (e.g. `isAvailable` vs `availability`). The `fieldMapping` option normalizes payloads during ingestion so API consumers can use **unified field names** regardless of the data source.
+
+### Format
+
+```json
+"fieldMapping": {
+  "normalizedField": "sourceField"
+}
+```
+
+- **Key**: the normalized field name stored in MongoDB (used for API queries)
+- **Value**: the original field path in the source JSON
+- **Dot notation** is supported for nested fields (e.g. `"city": "address.city"`)
+- Only mapped fields are kept in the stored payload
+
+### Example
+
+Source 1 original data:
+```json
+{ "address": { "city": "Lyon" }, "isAvailable": true, "priceForNight": 120 }
+```
+
+Source 2 original data:
+```json
+{ "city": "Lyon", "availability": true, "pricePerNight": 120 }
+```
+
+With the configured mappings, both are normalized to:
+```json
+{ "city": "Lyon", "available": true, "price": 120 }
+```
+
+### API Usage
+
+After normalization, consumers query all sources with the same field names:
+
+```
+GET /records?city=Lyon        # exact text (case-insensitive partial match)
+GET /records?city=Ly          # matches "Lyon", "Lyonnais", etc.
+GET /records?available=true   # boolean exact match
+GET /records?price=120        # numeric exact match
+```
+
+**Numeric ranges** use `_min`, `_max`, `_gt`, `_lt` suffixes:
+
+```
+GET /records?price_min=100&price_max=500   # 100 ≤ price ≤ 500
+GET /records?price_gt=200                  # price > 200
+```
+
+Any query parameter that is not `source`, `datasetId`, `limit`, or `cursor` is automatically treated as a payload filter. No prefix needed.
 
 ## How It Works
 
@@ -61,7 +131,11 @@ On each ingestion run, existing records matching the same `source` + `datasetId`
 
 The scheduler runs **every 10 minutes** by default (`0 */10 * * * *`).
 
-To change the frequency, edit the cron expression in `src/common/constants/scheduler.constants.ts`.
+To change the frequency, set the `INGESTION_CRON` environment variable:
+
+```bash
+INGESTION_CRON="0 0 * * * *" npm run start
+```
 
 | Expression | Description |
 |-----------|-------------|

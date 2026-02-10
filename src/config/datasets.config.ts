@@ -11,6 +11,7 @@ export interface DatasetConfig {
   bucket?: string;
   key?: string;
   description?: string;
+  fieldMapping?: Record<string, string>;
 }
 
 export interface DatasetsConfiguration {

@@ -23,9 +23,3 @@ export const IngestedRecordSchema =
   SchemaFactory.createForClass(IngestedRecord);
 
 IngestedRecordSchema.index({ source: 1, datasetId: 1 });
-
-// Indexes for commonly queried payload fields
-IngestedRecordSchema.index({ 'payload.address.city': 1 });
-IngestedRecordSchema.index({ 'payload.address.country': 1 });
-IngestedRecordSchema.index({ 'payload.isAvailable': 1 });
-IngestedRecordSchema.index({ 'payload.priceForNight': 1 });

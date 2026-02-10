@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -10,13 +10,48 @@ import {
   CursorPaginationParams,
   CursorPaginationResult,
 } from '../../common/utils/mongodb.types';
+import { DatasetsConfigService } from '../../config/datasets.config';
 
 @Injectable()
-export class IngestedRecordRepository {
+export class IngestedRecordRepository implements OnModuleInit {
+  private readonly logger = new Logger(IngestedRecordRepository.name);
+
   constructor(
     @InjectModel(IngestedRecord.name)
     private readonly model: Model<IngestedRecordDocument>,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.ensurePayloadIndexes();
+  }
+
+  /**
+   * Create specific indexes for normalized payload fields from datasets config.
+   * Runs at startup — idempotent (MongoDB ignores existing indexes).
+   */
+  private async ensurePayloadIndexes(): Promise<void> {
+    const datasets = DatasetsConfigService.loadDatasets();
+    const normalizedFields = new Set<string>();
+
+    for (const dataset of datasets) {
+      if (dataset.fieldMapping) {
+        for (const field of Object.keys(dataset.fieldMapping)) {
+          normalizedFields.add(field);
+        }
+      }
+    }
+
+    for (const field of normalizedFields) {
+      await this.model.collection.createIndex(
+        { [`payload.${field}`]: 1 },
+        { background: true },
+      );
+    }
+
+    this.logger.log(
+      `Ensured ${normalizedFields.size} payload indexes: ${[...normalizedFields].join(', ')}`,
+    );
+  }
 
   async insertMany(records: Partial<IngestedRecord>[]): Promise<void> {
     if (!records.length) return;

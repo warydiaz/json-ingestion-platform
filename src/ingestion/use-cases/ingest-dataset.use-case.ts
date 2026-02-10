@@ -3,6 +3,7 @@ import { IngestedRecordRepository } from '../../persistence/repositories/ingeste
 import { IngestMessageDto } from '../dto/ingest-message.dto';
 import { HttpDataFetcher } from '../adapters/http-data-fetcher';
 import { MissingRequiredFieldException } from '../../common/exceptions';
+import { PayloadTransformerUtil } from '../../common/utils/payload-transformer.util';
 import { BATCH_SIZES } from '../../common/constants';
 
 @Injectable()
@@ -43,12 +44,18 @@ export class IngestDatasetUseCase {
     // 3. Procesar por batches
     for await (const batch of dataStream) {
       // Transformar el batch
-      const records = batch.map((item) => ({
-        source,
-        datasetId: message.datasetId,
-        payload: item as any, // JsonObject is structurally compatible with RecordPayload
-        ingestionDate,
-      }));
+      const records = batch.map((item) => {
+        const payload = message.fieldMapping
+          ? PayloadTransformerUtil.transform(item, message.fieldMapping)
+          : item;
+
+        return {
+          source,
+          datasetId: message.datasetId,
+          payload: payload as any,
+          ingestionDate,
+        };
+      });
 
       // Persistir el batch
       await this.repository.insertMany(records);

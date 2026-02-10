@@ -32,6 +32,7 @@ export class PublishIngestionJobsTask {
         url: dataset.url,
         bucket: dataset.bucket,
         key: dataset.key,
+        fieldMapping: dataset.fieldMapping,
       });
     }
 

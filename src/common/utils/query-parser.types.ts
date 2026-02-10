@@ -19,12 +19,28 @@ export interface StandardFilters {
   [key: string]: string | number | boolean | undefined;
 }
 
+import type { MongoDbOperator } from './mongodb.types';
+
+/**
+ * MongoDB filter value — can be a primitive or an operator object
+ * Examples:
+ *   25                           → exact match
+ *   { $regex: 'Ly', $options: 'i' } → partial text
+ *   { $gte: 100, $lte: 500 }    → numeric range
+ */
+export type PayloadFilterValue =
+  | string
+  | number
+  | boolean
+  | null
+  | MongoDbOperator;
+
 /**
  * Payload-specific filters with MongoDB dot notation
- * Example: { 'payload.age': 25, 'payload.city': 'Madrid' }
+ * Example: { 'payload.age': 25, 'payload.city': { $regex: 'Ma', $options: 'i' } }
  */
 export interface PayloadFilters {
-  [key: string]: string | number | boolean | null;
+  [key: string]: PayloadFilterValue;
 }
 
 /**

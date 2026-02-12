@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { IngestedRecordRepository } from '../../persistence/repositories/ingested-record.repository';
 import type { ParsedQuery } from '../../common/utils/query-parser.types';
 import type { MongoDbFilter } from '../../common/utils/mongodb.types';
@@ -13,38 +13,31 @@ export class GetRecordsUseCase {
     limit: number = PAGINATION_DEFAULTS.LIMIT,
     cursor?: string,
   ) {
-    try {
-      const { standardFilters, payloadFilters } = parsedFilters;
+    const { standardFilters, payloadFilters } = parsedFilters;
 
-      // Combine all filters for MongoDB query
-      const filter: MongoDbFilter = {
-        ...standardFilters,
-        ...payloadFilters,
-      };
+    const filter: MongoDbFilter = {
+      ...standardFilters,
+      ...payloadFilters,
+    };
 
-      // Execute query — use estimatedCount when no filters for O(1) performance
-      const hasFilters = Object.keys(filter).length > 0;
-      const countPromise = hasFilters
-        ? this.repository.count(filter)
-        : this.repository.estimatedCount();
+    const hasFilters = Object.keys(filter).length > 0;
+    const countPromise = hasFilters
+      ? this.repository.count(filter)
+      : this.repository.estimatedCount();
 
-      const [result, total] = await Promise.all([
-        this.repository.findWithCursor({ filter, limit, cursor }),
-        countPromise,
-      ]);
+    const [result, total] = await Promise.all([
+      this.repository.findWithCursor({ filter, limit, cursor }),
+      countPromise,
+    ]);
 
-      return {
-        data: result.items,
-        pagination: {
-          total,
-          limit,
-          nextCursor: result.nextCursor,
-          hasMore: result.nextCursor !== null,
-        },
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new BadRequestException(message);
-    }
+    return {
+      data: result.items,
+      pagination: {
+        total,
+        limit,
+        nextCursor: result.nextCursor,
+        hasMore: result.nextCursor !== null,
+      },
+    };
   }
 }

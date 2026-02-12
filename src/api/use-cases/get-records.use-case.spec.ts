@@ -181,4 +181,19 @@ describe('GetRecordsUseCase', () => {
     expect(mockRepository.estimatedCount).toHaveBeenCalled();
     expect(result.pagination.total).toBe(5000);
   });
+
+  it('should propagate repository errors without wrapping them', async () => {
+    const filters: ParsedQuery = {
+      standardFilters: {},
+      payloadFilters: {},
+    };
+
+    const dbError = new Error('MongoDB connection lost');
+    mockRepository.findWithCursor.mockRejectedValue(dbError);
+    mockRepository.estimatedCount.mockResolvedValue(0);
+
+    await expect(useCase.execute(filters)).rejects.toThrow(
+      'MongoDB connection lost',
+    );
+  });
 });

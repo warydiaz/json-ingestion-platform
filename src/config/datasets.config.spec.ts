@@ -10,7 +10,7 @@ describe('DatasetsConfigService', () => {
 
   beforeEach(() => {
     // Reset the static config before each test
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
     (DatasetsConfigService as any).config = null;
 
     // Mock path.join to return a consistent path

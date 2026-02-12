@@ -1,5 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Controller, Get, INestApplication, Post, ValidationPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  INestApplication,
+  Post,
+  ValidationPipe,
+} from '@nestjs/common';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { ApiKeyGuard } from '../src/common/guards/api-key.guard';
 
@@ -66,7 +72,7 @@ describe('Application (e2e)', () => {
   });
 
   describe('POST /admin/trigger-ingestion', () => {
-    it('should return 401 without API key when guard is applied', async () => {
+    it('should return 401 without API key when guard is applied', () => {
       // Test the guard directly
       const guard = new ApiKeyGuard();
       const mockContext = {

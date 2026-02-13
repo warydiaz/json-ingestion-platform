@@ -10,7 +10,8 @@ import type {
 } from '../../common/utils/data-stream.types';
 import { BATCH_SIZES } from '../../common/constants';
 
-const STREAM_TIMEOUT_MS = 30_000;
+const INACTIVITY_TIMEOUT_MS = 30_000;
+const CONNECTION_TIMEOUT_MS = 30_000;
 const MAX_BATCH_BYTES = 50 * 1024 * 1024; // 50 MB
 
 @Injectable()
@@ -41,16 +42,21 @@ export class HttpDataFetcher {
     const abortController = new AbortController();
     let inputStream: Readable | null = null;
     let jsonStream: Readable | null = null;
+    let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const timeout = setTimeout(() => {
-      abortController.abort();
-    }, STREAM_TIMEOUT_MS);
+    const resetInactivityTimer = (): void => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        this.logger.error(`Stream inactivity timeout after ${INACTIVITY_TIMEOUT_MS}ms for ${url}`);
+        abortController.abort();
+      }, INACTIVITY_TIMEOUT_MS);
+    };
 
     try {
       const response = await axios.get<Readable>(url, {
         responseType: 'stream',
         signal: abortController.signal,
-        timeout: STREAM_TIMEOUT_MS,
+        timeout: CONNECTION_TIMEOUT_MS,
       });
 
       inputStream = response.data;
@@ -66,6 +72,10 @@ export class HttpDataFetcher {
       jsonParser.on('error', (err) => {
         jsonStream?.destroy(err);
       });
+
+      // Reset inactivity timer on incoming data
+      inputStream.on('data', () => resetInactivityTimer());
+      resetInactivityTimer();
 
       let batch: DataBatch = [];
       let batchBytes = 0;
@@ -99,11 +109,11 @@ export class HttpDataFetcher {
       this.logger.log(`Finished streaming dataset from ${url}`);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        this.logger.error(`Stream timeout after ${STREAM_TIMEOUT_MS}ms for ${url}`);
+        this.logger.error(`Stream aborted for ${url}`);
       }
       throw error;
     } finally {
-      clearTimeout(timeout);
+      if (inactivityTimer) clearTimeout(inactivityTimer);
       if (jsonStream && !jsonStream.destroyed) {
         jsonStream.destroy();
       }

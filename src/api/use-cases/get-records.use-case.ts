@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { IngestedRecordRepository } from '../../persistence/repositories/ingested-record.repository';
 import type { ParsedQuery } from '../../common/utils/query-parser.types';
 import type { MongoDbFilter } from '../../common/utils/mongodb.types';
+import type { GetRecordsResponse } from '../dto/get-records-response.dto';
 import { PAGINATION_DEFAULTS } from '../../common/constants';
 
 @Injectable()
@@ -12,7 +13,7 @@ export class GetRecordsUseCase {
     parsedFilters: ParsedQuery,
     limit: number = PAGINATION_DEFAULTS.LIMIT,
     cursor?: string,
-  ) {
+  ): Promise<GetRecordsResponse> {
     const { standardFilters, payloadFilters } = parsedFilters;
 
     const filter: MongoDbFilter = {

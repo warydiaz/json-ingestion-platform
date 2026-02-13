@@ -29,6 +29,16 @@ export class PayloadTransformerUtil {
     return result;
   }
 
+  private static isJsonObject(val: unknown): val is JsonObject {
+    return (
+      typeof val === 'object' &&
+      val !== null &&
+      !Array.isArray(val) &&
+      !(val instanceof Date) &&
+      !(val instanceof RegExp)
+    );
+  }
+
   /**
    * Get a value from a nested object using dot notation.
    * e.g. getNestedValue({ address: { city: "Lyon" } }, "address.city") → "Lyon"
@@ -41,16 +51,12 @@ export class PayloadTransformerUtil {
     let current: unknown = obj;
 
     for (const part of parts) {
-      if (
-        current === null ||
-        current === undefined ||
-        typeof current !== 'object'
-      ) {
+      if (!this.isJsonObject(current)) {
         return undefined;
       }
-      current = (current as JsonObject)[part];
+      current = current[part];
     }
 
-    return current as JsonValue;
+    return current as JsonValue | undefined;
   }
 }

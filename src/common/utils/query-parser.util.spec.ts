@@ -1,5 +1,6 @@
 import { QueryParserUtil } from './query-parser.util';
 import { InvalidFieldPathException } from '../../common/exceptions';
+import type { QueryParams } from './query-parser.types';
 
 describe('QueryParserUtil', () => {
   describe('parseQuery', () => {
@@ -281,19 +282,19 @@ describe('QueryParserUtil', () => {
 
   describe('input validation', () => {
     it('should throw error for null query', () => {
-      expect(() => QueryParserUtil.parseQuery(null as any)).toThrow(
+      expect(() => QueryParserUtil.parseQuery(null as unknown as QueryParams)).toThrow(
         'Query must be a valid object',
       );
     });
 
     it('should throw error for undefined query', () => {
-      expect(() => QueryParserUtil.parseQuery(undefined as any)).toThrow(
+      expect(() => QueryParserUtil.parseQuery(undefined as unknown as QueryParams)).toThrow(
         'Query must be a valid object',
       );
     });
 
     it('should throw error for non-object query', () => {
-      expect(() => QueryParserUtil.parseQuery('invalid' as any)).toThrow(
+      expect(() => QueryParserUtil.parseQuery('invalid' as unknown as QueryParams)).toThrow(
         'Query must be a valid object',
       );
     });

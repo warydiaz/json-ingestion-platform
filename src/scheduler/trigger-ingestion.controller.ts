@@ -27,7 +27,7 @@ export class TriggerIngestionController {
     status: 401,
     description: 'Unauthorized - invalid or missing API key',
   })
-  async triggerIngestion() {
+  async triggerIngestion(): Promise<{ message: string }> {
     await this.task.handleCron();
     return { message: 'Ingestion jobs published successfully' };
   }

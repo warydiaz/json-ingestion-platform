@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PublishIngestionJobsTask } from './publish-ingestion-jobs.task';
 import { RabbitMQPublisher } from '../messaging/rabbitmq.publisher';
 import { DatasetsConfigService } from '../config/datasets.config';
+import { DataSourceType } from '../ingestion/dto/ingest-message.dto';
 
 describe('PublishIngestionJobsTask', () => {
   let task: PublishIngestionJobsTask;
@@ -31,14 +32,14 @@ describe('PublishIngestionJobsTask', () => {
       {
         datasetId: 'dataset-1',
         source: 'source-1',
-        sourceType: 'HTTP' as never,
+        sourceType: DataSourceType.HTTP,
         url: 'https://example.com/1.json',
         fieldMapping: { city: 'address.city' },
       },
       {
         datasetId: 'dataset-2',
         source: 'source-2',
-        sourceType: 'HTTP' as never,
+        sourceType: DataSourceType.HTTP,
         url: 'https://example.com/2.json',
       },
     ]);
@@ -53,7 +54,7 @@ describe('PublishIngestionJobsTask', () => {
       {
         datasetId: 'ds-1',
         source: 'src-1',
-        sourceType: 'HTTP' as never,
+        sourceType: DataSourceType.HTTP,
         url: 'https://example.com/data.json',
         fieldMapping: { name: 'fullName' },
         description: 'Test dataset',
@@ -65,7 +66,7 @@ describe('PublishIngestionJobsTask', () => {
     expect(mockPublisher.publishIngestionJob).toHaveBeenCalledWith({
       datasetId: 'ds-1',
       source: 'src-1',
-      sourceType: 'HTTP',
+      sourceType: DataSourceType.HTTP,
       url: 'https://example.com/data.json',
       bucket: undefined,
       key: undefined,

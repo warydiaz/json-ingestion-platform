@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { IngestDatasetUseCase } from './ingest-dataset.use-case';
 import { IngestedRecordRepository } from '../../persistence/repositories/ingested-record.repository';
 import { HttpDataFetcher } from '../adapters/http-data-fetcher';
-import { MissingRequiredFieldException } from '../../common/exceptions';
 import { DataSourceType, IngestMessageDto } from '../dto/ingest-message.dto';
 
 describe('IngestDatasetUseCase', () => {
@@ -33,25 +32,31 @@ describe('IngestDatasetUseCase', () => {
 
   const createMessage = (
     overrides: Partial<IngestMessageDto> = {},
-  ): IngestMessageDto => ({
-    datasetId: 'test-dataset',
-    sourceType: DataSourceType.HTTP,
-    source: 'test-source',
-    url: 'https://example.com/data.json',
-    ...overrides,
-  });
+  ): IngestMessageDto => {
+    const msg = new IngestMessageDto();
+    msg.datasetId = overrides.datasetId ?? 'test-dataset';
+    msg.sourceType = overrides.sourceType ?? DataSourceType.HTTP;
+    msg.source = overrides.source ?? 'test-source';
+    msg.url = overrides.url ?? 'https://example.com/data.json';
+    msg.fieldMapping = overrides.fieldMapping;
+    return msg;
+  };
 
-  function* createStream(batches: Record<string, unknown>[][]) {
+  function* createStream(batches: Record<string, unknown>[][]): Generator<Record<string, unknown>[]> {
     for (const batch of batches) {
       yield batch;
     }
   }
 
-  it('should throw MissingRequiredFieldException when url is missing', async () => {
-    const message = createMessage({ url: undefined });
+  it('should throw when url is missing for HTTP source', async () => {
+    const msg = new IngestMessageDto();
+    msg.datasetId = 'test-dataset';
+    msg.sourceType = DataSourceType.HTTP;
+    msg.source = 'test-source';
+    // url is not set
 
-    await expect(useCase.execute(message)).rejects.toThrow(
-      MissingRequiredFieldException,
+    await expect(useCase.execute(msg)).rejects.toThrow(
+      'url is required for HTTP source',
     );
   });
 
@@ -69,9 +74,13 @@ describe('IngestDatasetUseCase', () => {
 
   it('should use sourceType as fallback when source is not provided', async () => {
     httpFetcher.fetch.mockReturnValue(createStream([]));
-    const message = createMessage({ source: undefined });
+    const msg = new IngestMessageDto();
+    msg.datasetId = 'test-dataset';
+    msg.sourceType = DataSourceType.HTTP;
+    msg.url = 'https://example.com/data.json';
+    // source is not set
 
-    await useCase.execute(message);
+    await useCase.execute(msg);
 
     expect(repository.deleteByDataset).toHaveBeenCalledWith(
       'HTTP',

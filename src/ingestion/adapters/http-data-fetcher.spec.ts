@@ -13,6 +13,9 @@ import { Readable } from 'stream';
 import { parser } from 'stream-json';
 import { streamArray } from 'stream-json/streamers/StreamArray';
 
+const mockedParser = jest.mocked(parser);
+const mockedStreamArray = jest.mocked(streamArray);
+
 describe('HttpDataFetcher', () => {
   let fetcher: HttpDataFetcher;
 
@@ -21,7 +24,7 @@ describe('HttpDataFetcher', () => {
     jest.clearAllMocks();
   });
 
-  function setupMockStream(items: Record<string, unknown>[]) {
+  function setupMockStream(items: Record<string, unknown>[]): void {
     const readable = new Readable({
       objectMode: true,
       read() {
@@ -32,15 +35,30 @@ describe('HttpDataFetcher', () => {
       },
     });
 
-    const mockPipe = jest.fn().mockReturnThis();
-    const mockInputStream = { pipe: mockPipe } as unknown as Readable;
+    // Add missing stream properties for destroy checks
+    Object.defineProperty(readable, 'destroyed', {
+      get: () => false,
+      configurable: true,
+    });
 
-    // First pipe returns parser output, second pipe returns streamArray output
-    mockPipe.mockReturnValueOnce({ pipe: jest.fn().mockReturnValue(readable) });
+    const mockPipe = jest.fn().mockReturnThis();
+    const mockInputStream = {
+      pipe: mockPipe,
+      on: jest.fn().mockReturnThis(),
+      destroyed: false,
+      destroy: jest.fn(),
+    } as unknown as Readable;
+
+    const mockParserStream = {
+      pipe: jest.fn().mockReturnValue(readable),
+      on: jest.fn().mockReturnThis(),
+    };
+
+    mockPipe.mockReturnValueOnce(mockParserStream);
 
     (axios.get as jest.Mock).mockResolvedValue({ data: mockInputStream });
-    (parser as jest.Mock).mockReturnValue({});
-    (streamArray as jest.Mock).mockReturnValue({});
+    mockedParser.mockReturnValue({ on: jest.fn().mockReturnThis() } as unknown as ReturnType<typeof parser>);
+    mockedStreamArray.mockReturnValue({} as unknown as ReturnType<typeof streamArray>);
   }
 
   it('should yield batches of the configured size', async () => {
@@ -91,7 +109,7 @@ describe('HttpDataFetcher', () => {
     expect(batches).toHaveLength(0);
   });
 
-  it('should call axios with the correct url and responseType stream', async () => {
+  it('should call axios with the correct url, responseType, signal, and timeout', async () => {
     setupMockStream([]);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -101,6 +119,8 @@ describe('HttpDataFetcher', () => {
 
     expect(axios.get).toHaveBeenCalledWith('https://example.com/data.json', {
       responseType: 'stream',
+      signal: expect.any(AbortSignal),
+      timeout: 30_000,
     });
   });
 
@@ -110,5 +130,50 @@ describe('HttpDataFetcher', () => {
     const generator = fetcher.fetch('https://example.com/data.json');
 
     await expect(generator.next()).rejects.toThrow('Network error');
+  });
+
+  it('should skip non-object values in stream', async () => {
+    const readable = new Readable({
+      objectMode: true,
+      read() {
+        this.push({ value: 'not-an-object' });
+        this.push({ value: { id: 1 } });
+        this.push({ value: 42 });
+        this.push({ value: { id: 2 } });
+        this.push(null);
+      },
+    });
+
+    const mockPipe = jest.fn().mockReturnThis();
+    const mockInputStream = {
+      pipe: mockPipe,
+      on: jest.fn().mockReturnThis(),
+      destroyed: false,
+      destroy: jest.fn(),
+    } as unknown as Readable;
+
+    const mockParserStream = {
+      pipe: jest.fn().mockReturnValue(readable),
+      on: jest.fn().mockReturnThis(),
+    };
+
+    mockPipe.mockReturnValueOnce(mockParserStream);
+
+    (axios.get as jest.Mock).mockResolvedValue({ data: mockInputStream });
+    mockedParser.mockReturnValue({ on: jest.fn().mockReturnThis() } as unknown as ReturnType<typeof parser>);
+    mockedStreamArray.mockReturnValue({} as unknown as ReturnType<typeof streamArray>);
+
+    const batches: Record<string, unknown>[][] = [];
+    for await (const batch of fetcher.fetch(
+      'https://example.com/data.json',
+      10,
+    )) {
+      batches.push(batch);
+    }
+
+    expect(batches).toHaveLength(1);
+    expect(batches[0]).toHaveLength(2);
+    expect(batches[0][0]).toEqual({ id: 1 });
+    expect(batches[0][1]).toEqual({ id: 2 });
   });
 });

@@ -1,57 +1,59 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, type ExecutionContext } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiKeyGuard } from './api-key.guard';
+
+function createMockContext(apiKey?: string): ExecutionContext {
+  return {
+    switchToHttp: jest.fn().mockReturnValue({
+      getRequest: () => ({
+        headers: apiKey ? { 'x-api-key': apiKey } : {},
+      }),
+    }),
+    switchToRpc: jest.fn(),
+    switchToWs: jest.fn(),
+    getType: jest.fn().mockReturnValue('http'),
+    getClass: jest.fn(),
+    getHandler: jest.fn(),
+    getArgs: jest.fn().mockReturnValue([]),
+    getArgByIndex: jest.fn(),
+  } as unknown as ExecutionContext;
+}
 
 describe('ApiKeyGuard', () => {
   let guard: ApiKeyGuard;
-  const originalEnv = process.env;
+  let configService: ConfigService;
 
   beforeEach(() => {
-    guard = new ApiKeyGuard();
-    process.env = { ...originalEnv, API_KEY: 'test-secret-key' };
+    configService = {
+      getOrThrow: jest.fn().mockReturnValue('test-secret-key'),
+    } as unknown as ConfigService;
+    guard = new ApiKeyGuard(configService);
   });
-
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  function createMockContext(apiKey?: string) {
-    return {
-      switchToHttp: () => ({
-        getRequest: () => ({
-          headers: apiKey ? { 'x-api-key': apiKey } : {},
-        }),
-      }),
-    };
-  }
 
   it('should allow access with valid API key', () => {
     const context = createMockContext('test-secret-key');
 
-    expect(guard.canActivate(context as never)).toBe(true);
+    expect(guard.canActivate(context)).toBe(true);
   });
 
   it('should throw UnauthorizedException with invalid API key', () => {
     const context = createMockContext('wrong-key');
 
-    expect(() => guard.canActivate(context as never)).toThrow(
-      UnauthorizedException,
-    );
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
   });
 
   it('should throw UnauthorizedException when API key is missing', () => {
     const context = createMockContext();
 
-    expect(() => guard.canActivate(context as never)).toThrow(
-      UnauthorizedException,
-    );
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
   });
 
-  it('should throw UnauthorizedException when API_KEY env var is not set', () => {
-    delete process.env.API_KEY;
+  it('should throw when API_KEY env var is not configured', () => {
+    (configService.getOrThrow as jest.Mock).mockImplementation(() => {
+      throw new Error('API_KEY is not defined');
+    });
     const context = createMockContext('some-key');
 
-    expect(() => guard.canActivate(context as never)).toThrow(
-      UnauthorizedException,
-    );
+    expect(() => guard.canActivate(context)).toThrow();
   });
 });

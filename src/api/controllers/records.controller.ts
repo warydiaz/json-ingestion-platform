@@ -4,6 +4,7 @@ import { GetRecordsUseCase } from '../use-cases/get-records.use-case';
 import { GetRecordsQueryDto } from '../dto/get-records-query.dto';
 import { ParsedFilters } from '../../common/decorators/parsed-filters.decorator';
 import type { ParsedQuery } from '../../common/utils/query-parser.types';
+import type { GetRecordsResponse } from '../dto/get-records-response.dto';
 
 @ApiTags('Records')
 @Controller('records')
@@ -41,7 +42,7 @@ export class RecordsController {
   async getRecords(
     @Query() query: GetRecordsQueryDto,
     @ParsedFilters() filters: ParsedQuery,
-  ) {
+  ): Promise<GetRecordsResponse> {
     return this.getRecordsUseCase.execute(filters, query.limit, query.cursor);
   }
 }

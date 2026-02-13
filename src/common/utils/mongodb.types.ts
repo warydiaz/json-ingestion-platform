@@ -22,6 +22,17 @@ export interface MongoDbOperator {
 }
 
 /**
+ * Input type for creating new ingested records.
+ * Uses Pick to enforce required fields instead of Partial.
+ */
+export interface CreateRecordInput {
+  source: string;
+  datasetId: string;
+  payload: import('./payload.types').RecordPayload;
+  ingestionDate: Date;
+}
+
+/**
  * Parameters for cursor-based pagination
  */
 export interface CursorPaginationParams {

@@ -5,10 +5,11 @@ import {
   IngestedRecord,
   IngestedRecordDocument,
 } from '../schemas/ingested-record.schema';
-import {
+import type {
   MongoDbFilter,
   CursorPaginationParams,
   CursorPaginationResult,
+  CreateRecordInput,
 } from '../../common/utils/mongodb.types';
 import { DatasetsConfigService } from '../../config/datasets.config';
 
@@ -53,7 +54,7 @@ export class IngestedRecordRepository implements OnModuleInit {
     );
   }
 
-  async insertMany(records: Partial<IngestedRecord>[]): Promise<void> {
+  async insertMany(records: CreateRecordInput[]): Promise<void> {
     if (!records.length) return;
 
     await this.model.insertMany(records, {

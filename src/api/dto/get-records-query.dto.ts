@@ -1,9 +1,8 @@
 import { IsOptional, IsString, IsNumber, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PAGINATION_DEFAULTS } from '../../common/constants';
-import type { QueryParams } from '../../common/utils/query-parser.types';
 
-export class GetRecordsQueryDto implements QueryParams {
+export class GetRecordsQueryDto {
   @IsOptional()
   @IsString()
   source?: string;
@@ -22,8 +21,4 @@ export class GetRecordsQueryDto implements QueryParams {
   @IsOptional()
   @IsString()
   cursor?: string;
-
-  // Allow dynamic payload filters (e.g., payload.age, payload.city)
-  // Validation happens in use-case via QueryParserUtil
-  [key: string]: string | number | boolean | undefined;
 }

@@ -7,16 +7,16 @@ export type IngestedRecordDocument = IngestedRecord & Document;
 @Schema({ timestamps: true })
 export class IngestedRecord {
   @Prop({ required: true })
-  source: string;
+  source!: string;
 
   @Prop({ required: true })
-  datasetId: string;
+  datasetId!: string;
 
   @Prop({ type: Object, required: true })
-  payload: RecordPayload;
+  payload!: RecordPayload;
 
   @Prop({ index: true })
-  ingestionDate: Date;
+  ingestionDate!: Date;
 }
 
 export const IngestedRecordSchema =

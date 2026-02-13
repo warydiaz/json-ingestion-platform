@@ -4,5 +4,5 @@ import { MongooseModuleOptions } from '@nestjs/mongoose';
 export const getMongoConfig = (
   configService: ConfigService,
 ): MongooseModuleOptions => ({
-  uri: configService.get<string>('MONGO_URI'),
+  uri: configService.getOrThrow<string>('MONGO_URI'),
 });

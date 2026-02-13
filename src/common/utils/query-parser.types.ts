@@ -1,6 +1,9 @@
+import type { MongoDbOperator } from './mongodb.types';
+
 /**
- * Represents the input query parameters
- * Can contain standard filters and dynamic payload filters
+ * Represents the input query parameters.
+ * Known fields are typed explicitly; dynamic payload filters
+ * are handled separately via the @ParsedFilters decorator.
  */
 export interface QueryParams {
   source?: string;
@@ -18,8 +21,6 @@ export interface StandardFilters {
   datasetId?: string;
   [key: string]: string | number | boolean | undefined;
 }
-
-import type { MongoDbOperator } from './mongodb.types';
 
 /**
  * MongoDB filter value — can be a primitive or an operator object

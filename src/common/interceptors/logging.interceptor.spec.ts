@@ -20,8 +20,8 @@ describe('LoggingInterceptor', () => {
       getHandler: () => jest.fn(),
       getArgs: () => [],
       getArgByIndex: () => ({}),
-      switchToRpc: () => ({}) as never,
-      switchToWs: () => ({}) as never,
+      switchToRpc: jest.fn(),
+      switchToWs: jest.fn(),
       getType: () => 'http',
     } as unknown as ExecutionContext;
   }

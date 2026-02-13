@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { IngestedRecordRepository } from './ingested-record.repository';
 import { IngestedRecord } from '../schemas/ingested-record.schema';
+import type { CreateRecordInput } from '../../common/utils/mongodb.types';
 
 jest.mock('../../config/datasets.config', () => ({
   DatasetsConfigService: {
@@ -16,9 +17,24 @@ jest.mock('../../config/datasets.config', () => ({
 
 describe('IngestedRecordRepository', () => {
   let repository: IngestedRecordRepository;
-  let mockModel: Record<string, jest.Mock>;
+  let mockCollection: { createIndex: jest.Mock };
+  let mockModel: {
+    insertMany: jest.Mock;
+    find: jest.Mock;
+    sort: jest.Mock;
+    limit: jest.Mock;
+    lean: jest.Mock;
+    countDocuments: jest.Mock;
+    estimatedDocumentCount: jest.Mock;
+    deleteMany: jest.Mock;
+    collection: { createIndex: jest.Mock };
+  };
 
   beforeEach(async () => {
+    mockCollection = {
+      createIndex: jest.fn().mockResolvedValue('ok'),
+    };
+
     mockModel = {
       insertMany: jest.fn().mockResolvedValue([]),
       find: jest.fn().mockReturnThis(),
@@ -28,9 +44,7 @@ describe('IngestedRecordRepository', () => {
       countDocuments: jest.fn().mockResolvedValue(0),
       estimatedDocumentCount: jest.fn().mockResolvedValue(0),
       deleteMany: jest.fn().mockResolvedValue({ deletedCount: 0 }),
-      collection: {
-        createIndex: jest.fn().mockResolvedValue('ok'),
-      },
+      collection: mockCollection,
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -45,8 +59,13 @@ describe('IngestedRecordRepository', () => {
 
   describe('insertMany', () => {
     it('should insert records using the model', async () => {
-      const records = [
-        { source: 's1', datasetId: 'd1', payload: { city: 'Lyon' } },
+      const records: CreateRecordInput[] = [
+        {
+          source: 's1',
+          datasetId: 'd1',
+          payload: { city: 'Lyon' },
+          ingestionDate: new Date('2024-01-01'),
+        },
       ];
 
       await repository.insertMany(records);
@@ -160,11 +179,11 @@ describe('IngestedRecordRepository', () => {
     it('should create indexes for payload fields on module init', async () => {
       await repository.onModuleInit();
 
-      expect(mockModel.collection.createIndex).toHaveBeenCalledWith(
+      expect(mockCollection.createIndex).toHaveBeenCalledWith(
         { 'payload.city': 1 },
         { background: true },
       );
-      expect(mockModel.collection.createIndex).toHaveBeenCalledWith(
+      expect(mockCollection.createIndex).toHaveBeenCalledWith(
         { 'payload.price': 1 },
         { background: true },
       );

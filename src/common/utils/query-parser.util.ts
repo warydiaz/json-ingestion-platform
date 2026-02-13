@@ -2,13 +2,14 @@ import {
   InvalidFieldPathException,
   EmptyFieldPathException,
 } from '../exceptions';
-import {
+import type {
   QueryParams,
   ParsedQuery,
   ParsedValue,
   StandardFilters,
   PayloadFilters,
 } from './query-parser.types';
+import type { MongoDbOperator } from './mongodb.types';
 
 // Range suffixes for numeric range queries
 const RANGE_SUFFIXES: Record<string, string> = {
@@ -76,12 +77,21 @@ export class QueryParserUtil {
     return { standardFilters, payloadFilters };
   }
 
+  private static isMongoDbOperator(val: unknown): val is MongoDbOperator {
+    return (
+      typeof val === 'object' &&
+      val !== null &&
+      !Array.isArray(val) &&
+      Object.keys(val).every((k) => k.startsWith('$'))
+    );
+  }
+
   /**
    * Add a payload filter, handling range suffixes and partial text
    */
   private static addPayloadFilter(
     key: string,
-    rawValue: unknown,
+    rawValue: string | number | boolean,
     payloadFilters: PayloadFilters,
   ): void {
     // Check for range suffix (_min, _max, _gt, _lt)
@@ -97,7 +107,7 @@ export class QueryParserUtil {
       const existing = payloadFilters[mongoKey];
 
       // Merge with existing range operators on the same field
-      if (existing && typeof existing === 'object' && existing !== null) {
+      if (this.isMongoDbOperator(existing)) {
         (existing as Record<string, unknown>)[operator] = numValue;
       } else {
         payloadFilters[mongoKey] = { [operator]: numValue };

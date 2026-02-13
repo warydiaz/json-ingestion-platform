@@ -9,15 +9,12 @@ describe('DatasetsConfigService', () => {
   const mockConfigPath = '/mock/path/datasets.config.json';
 
   beforeEach(() => {
-    // Reset the static config before each test
-
-    (DatasetsConfigService as any).config = null;
-
-    // Mock path.join to return a consistent path
+    jest.clearAllMocks();
     (path.join as jest.Mock).mockReturnValue(mockConfigPath);
   });
 
   afterEach(() => {
+    DatasetsConfigService.clearCache();
     jest.clearAllMocks();
   });
 
@@ -58,13 +55,9 @@ describe('DatasetsConfigService', () => {
 
     (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(mockConfig));
 
-    // First load
+    DatasetsConfigService.loadDatasets();
     DatasetsConfigService.loadDatasets();
 
-    // Second load (should use cache)
-    DatasetsConfigService.loadDatasets();
-
-    // readFileSync should only be called once (cached)
     expect(fs.readFileSync).toHaveBeenCalledTimes(1);
   });
 
@@ -82,13 +75,9 @@ describe('DatasetsConfigService', () => {
 
     (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(mockConfig));
 
-    // First load
     DatasetsConfigService.loadDatasets();
-
-    // Reload (should clear cache and read again)
     DatasetsConfigService.reloadDatasets();
 
-    // readFileSync should be called twice
     expect(fs.readFileSync).toHaveBeenCalledTimes(2);
   });
 
@@ -104,6 +93,12 @@ describe('DatasetsConfigService', () => {
 
   it('should throw error if config file has invalid JSON', () => {
     (fs.readFileSync as jest.Mock).mockReturnValue('invalid json {');
+
+    expect(() => DatasetsConfigService.loadDatasets()).toThrow();
+  });
+
+  it('should throw error if config is missing datasets array', () => {
+    (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify({}));
 
     expect(() => DatasetsConfigService.loadDatasets()).toThrow();
   });

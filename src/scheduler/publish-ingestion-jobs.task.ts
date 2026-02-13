@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { RabbitMQPublisher } from '../messaging/rabbitmq.publisher';
 import { DatasetsConfigService } from '../config/datasets.config';
-import { SCHEDULER_CONFIG } from '../common/constants';
+import { SCHEDULER_DEFAULTS } from '../common/constants';
 
 @Injectable()
 export class PublishIngestionJobsTask {
@@ -10,19 +10,17 @@ export class PublishIngestionJobsTask {
 
   constructor(private readonly publisher: RabbitMQPublisher) {}
 
-  @Cron(SCHEDULER_CONFIG.CRON.INGESTION_JOBS)
-  async handleCron() {
+  @Cron(SCHEDULER_DEFAULTS.CRON.INGESTION_JOBS)
+  async handleCron(): Promise<void> {
     this.logger.log('Publishing ingestion jobs...');
 
-    // Load datasets from configuration file
     const datasets = DatasetsConfigService.loadDatasets();
 
     this.logger.log(`Found ${datasets.length} datasets to ingest`);
 
-    // Publish a job for each configured dataset
     for (const dataset of datasets) {
       this.logger.log(
-        `Publishing job for dataset: ${dataset.datasetId} (${dataset.description || 'no description'})`,
+        `Publishing job for dataset: ${dataset.datasetId} (${dataset.description ?? 'no description'})`,
       );
 
       await this.publisher.publishIngestionJob({

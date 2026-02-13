@@ -5,7 +5,9 @@ import {
   INestApplication,
   Post,
   ValidationPipe,
+  type ExecutionContext,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { ApiKeyGuard } from '../src/common/guards/api-key.guard';
 
@@ -15,7 +17,10 @@ const request = require('supertest');
 @Controller('records')
 class MockRecordsController {
   @Get()
-  getRecords() {
+  getRecords(): {
+    data: unknown[];
+    pagination: { total: number; limit: number; nextCursor: null; hasMore: boolean };
+  } {
     return {
       data: [],
       pagination: { total: 0, limit: 10, nextCursor: null, hasMore: false },
@@ -26,7 +31,7 @@ class MockRecordsController {
 @Controller('admin')
 class MockAdminController {
   @Post('trigger-ingestion')
-  trigger() {
+  trigger(): { message: string } {
     return { message: 'ok' };
   }
 }
@@ -37,7 +42,15 @@ describe('Application (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [MockRecordsController, MockAdminController],
-      providers: [ApiKeyGuard],
+      providers: [
+        ApiKeyGuard,
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn().mockReturnValue('test-api-key'),
+          },
+        },
+      ],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -73,15 +86,18 @@ describe('Application (e2e)', () => {
 
   describe('POST /admin/trigger-ingestion', () => {
     it('should return 401 without API key when guard is applied', () => {
-      // Test the guard directly
-      const guard = new ApiKeyGuard();
+      const mockConfigService = {
+        getOrThrow: jest.fn().mockReturnValue('expected-key'),
+      } as unknown as ConfigService;
+      const guard = new ApiKeyGuard(mockConfigService);
+
       const mockContext = {
-        switchToHttp: () => ({
+        switchToHttp: jest.fn().mockReturnValue({
           getRequest: () => ({ headers: {} }),
         }),
-      };
+      } as unknown as ExecutionContext;
 
-      expect(() => guard.canActivate(mockContext as never)).toThrow();
+      expect(() => guard.canActivate(mockContext)).toThrow();
     });
   });
 });
